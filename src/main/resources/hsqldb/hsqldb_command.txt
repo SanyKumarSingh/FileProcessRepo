@@ -1,0 +1,5 @@
+#Navigate to file-based HSQLDB (http://hsqldb.org/) working folder
+C:\Users\startklar>cd C:\eclipseWorkspaceCS3\ShoppingMartDemo\src\main\resources\hsqldb
+
+#start the HSQLDB server and create our database whose source files will be stored in the working folder
+C:\eclipseWorkspaceCS3\ShoppingMartDemo\src\main\resources\hsqldb>java -cp C:\artifact.repository\org\hsqldb\hsqldb\2.4.1\hsqldb-2.4.1.jar org.hsqldb.server.Server --database.0 file.testdb --dbname0.testdb
