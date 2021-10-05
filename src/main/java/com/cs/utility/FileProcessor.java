@@ -13,17 +13,32 @@ import org.json.JSONException;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import com.cs.dto.EventDTO;
+import com.cs.model.Event;
+import com.cs.repository.EventRepository;
+import com.cs.service.impl.EventServiceImpl;
 
-public class ProcessLargeFile {
+@Component
+public class FileProcessor {
 	
-	private static Map<String, EventDTO> events = new HashMap<String, EventDTO>();
+	private static final Logger logger = LoggerFactory.getLogger(EventServiceImpl.class);
+	
+	@Autowired
+	private EventRepository eventRepository;
+	
+	private Map<String, EventDTO> events = new HashMap<String, EventDTO>();
+	
+	private int countLongEvents = 0;
 
-	public static void main(String[] args) throws IOException, ParseException, JSONException {
+	/*public static void main(String[] args) throws IOException, ParseException, JSONException {
 		String filePath = "../ShoppingMartDemo/src/main/resources/logfile.txt";
 		readLargeFileInChunks(filePath);
-	}
+	}*/
 
 	/*
 	 * When we use a Java IO to read a file, the slowest part of the process is when
@@ -44,7 +59,9 @@ public class ProcessLargeFile {
 	 * a buffer size. Example buffer size (4 * 1024) which could be adjust as per
 	 * file size.
 	 */
-	private static void readLargeFileInChunks(String filePath) throws IOException, ParseException, JSONException {
+	public int readLargeFileInChunks(String filePath) throws IOException, ParseException, JSONException {
+		logger.info("Processing request to read event details in log file and save the event details");
+		countLongEvents = 0;
 		try (InputStream inputStream = new FileInputStream(filePath);
 				BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);) {
 			byte[] buffer = new byte[200];
@@ -58,35 +75,36 @@ public class ProcessLargeFile {
 				remainingTextFromChunk = processFileContent(remainingTextFromChunk + fileContentInChunk);
 			}
 		}
+		
+		return countLongEvents;
 	}
 
 	/*
 	 * Format the chunk of file content to form proper JSON data. Split the JSON
 	 * data chunk for line by line JSON processing and store the events in a Map.
 	 */
-	private static String processFileContent(String fileContent) throws IOException, ParseException, JSONException {
-		
-
+	private String processFileContent(String fileContent) throws IOException, ParseException, JSONException {
 		String json = fileContent.substring(0, fileContent.lastIndexOf("}") + 1);
 		String remainingTextFromChunk = fileContent.substring(fileContent.lastIndexOf("}") + 1);
 
 		// Split the JSON data chunk to pass each line of JSON for processing.
 		for (String jsonData : json.split("((?<=}))")) {
 			System.out.println(jsonData);
-			EventDTO event = parseJSONLineByLine(jsonData);
+			EventDTO eventDTO = parseJSONLineByLine(jsonData);
 			
-			if (events.containsKey(event.getId())) {
+			if (events.containsKey(eventDTO.getId())) {
 				// Calculate the event duration and 
 				System.out.println("Match Found");
-				event = processEventDetails(events.get(event.getId()), event);
+				eventDTO = processEventDetails(events.get(eventDTO.getId()), eventDTO);
 				
 				// Clean up the Map after use to keep it light weight
-				events.remove(event.getId());
+				events.remove(eventDTO.getId());
 				
 				//Save the event details in database
-				//......
+				Event event = convertEventDTOtoModel(eventDTO);
+				eventRepository.save(event);
 			} else {
-				events.put(event.getId(), event);
+				events.put(eventDTO.getId(), eventDTO);
 				System.out.println("Match Not Found");
 			}
 		}
@@ -95,9 +113,9 @@ public class ProcessLargeFile {
 	}
 
 	/*
-	 * Parse the JSON Line to store the event details in EventDTO.
+	 * Parse the JSON Line by Line to store the event details in EventDTO.
 	 */
-	private static EventDTO parseJSONLineByLine(String json) throws ParseException, JSONException {
+	private EventDTO parseJSONLineByLine(String json) throws ParseException, JSONException {
 		EventDTO event = new EventDTO();
 
 		JSONParser parser = new JSONParser();
@@ -118,24 +136,26 @@ public class ProcessLargeFile {
 
 		String type = (String) jsonObject.get("type");
 		System.out.println(type);
-		event.setState(type);
+		event.setType(type);
 
 		String host = (String) jsonObject.get("host");
 		System.out.println(host);
-		event.setState(host);
+		event.setHost(host);
 
 		return event;
 	}
 
 	/*
-	 * Parse the JSON Line to store the event details in EventDTO.
+	 * After reading the event calculate the event duration.
+	 * Set the Alert Flag based on Event Duration - true if the event took longer than 4ms, otherwise false
 	 */
-	private static EventDTO processEventDetails(EventDTO storedEvent, EventDTO currentEvent) {
+	private EventDTO processEventDetails(EventDTO storedEvent, EventDTO currentEvent) {
 		currentEvent.setDuration(Math.abs(storedEvent.getTimestamp() - currentEvent.getTimestamp()));
 		System.out.println(currentEvent.getDuration());
 		
 		if(currentEvent.getDuration() > 4) {
 			currentEvent.setAlert(true);
+			countLongEvents++;
 		}
 		System.out.println(currentEvent.isAlert());
 		
@@ -151,9 +171,25 @@ public class ProcessLargeFile {
 		
 		return currentEvent;
 	}
-
 	
-	private static void parseJSONInChunk(String json) throws IOException, ParseException, JSONException {
+
+	/*
+	 * Convert Event DTO to Event Data Model 
+	 */
+	private Event convertEventDTOtoModel(EventDTO eventDto) {
+		Event event = new Event();
+		event.setEventId(eventDto.getId());
+		event.setEventDuration(eventDto.getDuration());
+		event.setHost(eventDto.getHost());
+		event.setType(eventDto.getType());
+		event.setAlert(eventDto.isAlert() ? "Y" : "N");
+		return event;
+	}
+
+	/*
+	 * Parse the JSON in chunk to store the event details in EventDTO.
+	 */
+	private void parseJSONInChunk(String json) throws IOException, ParseException, JSONException {
 		JSONArray array = new JSONArray(json);
 		for (int i = 0; i < array.length(); i++) {
 			org.json.JSONObject object = array.getJSONObject(i);

@@ -1,0 +1,45 @@
+################################ HyperSQL Database (HSQLDB) ##############################
+#
+# Each HSQLDB is called a catalog. There are three types of catalog depending on how the data is stored.
+# mem: stored entirely in RAM. file: stored in file system. res: stored in a Java resource, such as a Jar or Zip and are always read-only.
+#
+# A file catalog consists 2 – 6 files, all named same as the <database-name> but with different extensions. All these files are essential and should never be deleted. 
+# <database-name>.properties – 	Contains settings about the database.
+# <database-name>.script – 		Contains definitions for tables and other database objects plus data for non-cached tables.
+# <database-name>.log – 		Contains recent changes made to the data. Log is removed when database shutdown normally. For abnormal shutdown, it is used to redo the changes in the next startup.
+# <database-name>.data – 		Contains the data for cached tables.
+# <database-name>.backup – 		It is used to revert to the last known consistent state of the data file.
+# <database-name>.lck - 		Used to lock the database.
+#
+# When the database engine shutdown, it creates temporary files with the extension .new. These files should not be deleted by the user. 
+# During next startup, all such files will be renamed as above or deleted by the database engine. 
+# In some circumstances, <database-name>.data.xxx.old is created and deleted afterwards by the database engine. The user can delete these testdb.data.xxx.old files.
+#
+# HSQLDB is supported by spring-boot-starter-parent by 2.0.0.RELEASE
+# In this Project used hsql_cfg.xml to load HSQLDB configuration on Application Server startup by importing the xml file in Application.java
+###########################################################################################
+
+#Navigate to HSQLDB working folder
+cd C:\eclipseWorkspaceCS3\ShoppingMartDemo\src\main\resources\hsqldb
+
+##### HSQLDB below two GUI database managers 
+java -cp C:\artifact.repository\org\hsqldb\hsqldb\2.4.1\hsqldb-2.4.1.jar org.hsqldb.util.DatabaseManagerSwing
+
+java -cp C:\artifact.repository\org\hsqldb\hsqldb\2.4.1\hsqldb-2.4.1.jar org.hsqldb.util.DatabaseManager
+
+
+##### HSQLDB In-Memory catalog connection details to GUI #####
+Driver: 	org.hsqldb.jdbcDriver
+URL: 		jdbc:hsqldb:hsql://192.168.1.2:9001/testdb
+			#jdbc:hsqldb:hsql://<ip_address>:<port>/<dbname>
+user: 		admin
+password: 	admin
+
+##### HSQLDB File catalog connection details to GUI #####
+Setting Name:  	testdb
+Driver: 		org.hsqldb.jdbcDriver
+URL: 			jdbc:hsqldb:file:/eclipseWorkspaceCS3/ShoppingMartDemo/src/main/resources/hsqldb/testdb
+user: 			admin
+password: 		admin
+
+
